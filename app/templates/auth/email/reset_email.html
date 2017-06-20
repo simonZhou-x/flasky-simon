@@ -1,0 +1,9 @@
+Dear <b>{{ user.username }}</b>
+
+reset password click on the following link
+
+<b>{{ url_for('auth.confirm', token=token, _external=True) }}</b>
+
+The Flask Team
+
+Note: replies to this email adress are not monitred.

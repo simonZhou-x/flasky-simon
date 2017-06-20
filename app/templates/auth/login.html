@@ -15,5 +15,11 @@
 			Click here to register
 		</a>
 	</p>
+	<p>
+		忘记密码?
+		<a href="{{ url_for('auth.sendmail') }}">
+			重设密码
+		</a>
+	</p>
 </div>
 {% endblock %}

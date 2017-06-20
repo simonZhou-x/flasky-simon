@@ -1,0 +1,13 @@
+Dear <b>{{ user.username }}</b>
+
+Welcome to Flasky!
+
+To confirm tour account please click on the following link:
+
+<b>{{ url_for('auth.confirm', token=token, _external=True) }}</b>
+
+Sincerely,
+
+The Flask Team
+
+Note: replies to this email adress are not monitred.
