@@ -8,10 +8,13 @@ from .. import db
 from ..email import send_email
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
+
 @auth.before_app_request
 def before_request():
-	if current_user.is_authenticated and current_user.confirmed==0 and request.endpoint and request.endpoint[:5] != 'auth.' and request.endpoint !='static':
-		return redirect(url_for('auth.unconfirmed'))
+	if current_user.is_authenticated:
+		current_user.ping()
+		if current_user.confirmed==0 and request.endpoint and request.endpoint[:5] != 'auth.' and request.endpoint != 'static':
+			return redirect(url_for('auth.unconfirmed'))
 
 @auth.route('/unconfirmed')
 def unconfirmed():
@@ -51,7 +54,7 @@ def register():
 		db.session.commit()
 		token = user.generate_confirmation_token()
 		send_email(user.email, 'Confirm Your Account','auth/email/confirm',user=user,token=token)
-		flash('A confirmation email has been sent to you by email.')
+		flash(u'验证邮件已发送到您的邮箱，请查看确认。')
 		return redirect(url_for('auth.login'))
 	return render_template('auth/register.html', form=form)
 
@@ -152,22 +155,4 @@ def reset_email():
 			flash(u'请输入正确的邮箱')
 	return render_template('auth/reset_email.html',form=form)
 
-#@auth.route('/reset/email/<token>',methods=['GET','POST'])
-#@login_required
-#def resetemail(token):
-	#if not current_user.is_anonymous:
-		#flash(u'用户已登录')
-		#return redirect(url_for('main.index'))
-	#	if current_user.confirmed==0:
-		#	return redirect(url_for('main.index'))
-#	s = Serializer(current_user.config['SECRET_KEY'])
-#	data = s.lodas(token)
-#	id=data.get('reset')
-#	user = User.query.filter_by(id=id).first()
-#	if user.reset_email(token,current_user.email2):
-		#current_user.email = current_user.email2
-		#db.session.add(current_user)
-#		flash('You have confirmed your account. Thanks!')
-#	else:
-#		flash('The confirmation link is invalid or has expired.')
-#	return redirect(url_for('main.index'))
+	
