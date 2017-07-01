@@ -1,9 +1,9 @@
 #coding=utf-8
 from flask import render_template,redirect, request,url_for,flash,current_app, make_response
 from . import main
-from ..models import User, Role, Permission, Post
+from ..models import User, Role, Permission, Post, Comment
 from .. import db
-from .forms import EditProfileForm, EditProfileAdiminForm, PostForm
+from .forms import EditProfileForm, EditProfileAdiminForm, PostForm, CommentForm
 from flask_login import login_required, current_user
 from ..decorators import admin_required
 from ..decorators import permission_required
@@ -93,10 +93,21 @@ def edit_profile_admin(id):
 	form.about_me.data = user.about_me
 	return render_template('edit_profile.html', form=form, user=user)
 
-@main.route('/post/<int:id>')
+@main.route('/post/<int:id>',methods=['GET','POST'])
 def post(id):
 	post = Post.query.get_or_404(id)
-	return render_template('post.html',posts=[post])
+	form = CommentForm()
+	if form.validate_on_submit():
+		comment = Comment(body=form.body.data,post=post,author=current_user._get_current_object())
+		db.session.add(comment)
+		flash(u'你的评论已发布')
+		return redirect(url_for('.post', id=post.id, page=-1))
+	page = request.args.get('page',1,type=int)
+	if page == -1:
+		page = (post.comments.count() -1)/current_app.config['FLASKY_COMMENTS_PER_PAGE'] +1
+	pagination = post.comments.order_by(Comment.timestamp.asc()).paginate(page, per_page=current_app.config['FLASKY_COMMENTS_PER_PAGE'],error_out=False)
+	comments = pagination.items
+	return render_template('post.html', posts=[post],form=form,comments=comments,pagination=pagination)
 
 @main.route('/edit/<int:id>', methods=['GET','POST'])
 @login_required
@@ -111,7 +122,7 @@ def edit(id):
 		flash(u'帖子已更新')
 		return redirect(url_for('.post',id=post.id))
 	form.body.data = post.body
-	return render_template('edit_post.html',form=form)
+	return render_template('edit_post.html',form=form, post=post)
 
 @main.route('/follow/<username>')
 @login_required
@@ -161,3 +172,15 @@ def followed_by(username):
 	pagination = user.followed.paginate(page, per_page=int(current_app.config['FLASKY_FOLLOWERS_PER_PAGE']),error_out=False)
 	follows = [{'user':item.followed, 'timestamp':item.timestamp} for item in pagination.items]
 	return render_template('followers.html',user=user,title=u'关注的用户',endpoint='.followers',pagination=pagination,follows=follows)
+
+@main.route('/delete_posts/<int:id>')
+@login_required
+def delete_posts(id):
+	posts = Post.query.filter_by(id=id).first()
+	if posts is None:
+		flash(u'帖子不存在')
+		return redirect(url_for('.index'))
+	else:
+		db.session.delete(posts)
+		flash(u'帖子已删除')
+		return redirect(url_for('.index'))

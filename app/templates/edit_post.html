@@ -6,6 +6,10 @@
 {% block page_content %}
 <div class="page-header">
 	<h1>编辑帖子</h1>
+	{% if current_user.id == post.author_id or current_user.is_administrator() %}
+	<a href="{{ url_for('.delete_posts', id=post.id) }}">
+        <span class="label label-danger">删除帖子</span>
+	{% endif %}
 </div>
 <div>
 	{{ wtf.quick_form(form) }}

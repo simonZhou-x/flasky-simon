@@ -21,13 +21,13 @@ class RegistrationForm(Form):
 	#验证用户所使用的邮箱能否在数据库检索到，如果返回True，则说明邮箱已注册，返回错误信息
 	def validate_email(self, field):
 		if User.query.filter_by(email=field.data).first():
-			raise ValidationError('Email already registered.')
+			raise ValidationError(u'此邮箱已注册。')
 
 
 	#同上，验证用户名
 	def validate_username(self, field):
 		if User.query.filter_by(username=field.data).first():
-			raise ValidationError('Username already in use.')
+			raise ValidationError(u'用户名已存在。')
 
 class NewPassword(Form):
 	
