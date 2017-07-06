@@ -1,14 +1,22 @@
 #coding=utf-8
-from flask import render_template,redirect, request,url_for,flash,current_app, make_response
+import os
+from flask import abort, render_template,redirect, request,url_for,flash,current_app, make_response
 from . import main
 from ..models import User, Role, Permission, Post, Comment
 from .. import db
-from .forms import EditProfileForm, EditProfileAdiminForm, PostForm, CommentForm
+from .forms import FileForm, EditProfileForm, EditProfileAdiminForm, PostForm, CommentForm
 from flask_login import login_required, current_user
 from ..decorators import admin_required
 from ..decorators import permission_required
+from flask_sqlalchemy import get_debug_queries
+import random
 
-
+@main.after_app_request
+def after_request(response):
+	for query in get_debug_queries():
+		if query.duration >= 0.5:
+			current_app.logger.warning('Slow query:%s\nParameters:%s\nDuration:%fs\nContext:%s\n'%(query.statement,query.parameters,query.duration,query.context))
+	return response
 
 @main.route('/', methods=['GET', 'POST'])
 def index():
@@ -27,7 +35,9 @@ def index():
 		query = Post.query
 	pagination = query.order_by(Post.timestamp.desc()).paginate(page, per_page=int(current_app.config['FLASKY_POSTS_PER_PAGE']),error_out=False)
 	posts = pagination.items
-	return render_template('index.html', form=form, posts=posts,show_followed=show_followed, pagination=pagination)
+	#comments = Comment.query.filter_by(post_id=post.id).all()
+	a = 0
+	return render_template('index.html', form=form, posts=posts,show_followed=show_followed, pagination=pagination,a=a)
 
 @main.route('/all')
 @login_required
@@ -49,7 +59,7 @@ def user(username):
 	if user is None:
 		abort(404)
 	posts = user.posts.order_by(Post.timestamp.desc()).all()
-	return render_template('user.html', user=user, posts=posts)
+	return render_template('user.html', user=user, posts=posts, img=user.img)
 
 @main.route('/edit-profile', methods=['GET','POST'])
 @login_required
@@ -184,3 +194,56 @@ def delete_posts(id):
 		db.session.delete(posts)
 		flash(u'帖子已删除')
 		return redirect(url_for('.index'))
+
+@main.route('/moderate')
+@login_required
+@permission_required(Permission.MODERATE_COMMENTS)
+def moderate():
+	page = request.args.get('page', 1, type=int)
+	pagination = Comment.query.order_by(Comment.timestamp.desc()).paginate(page, per_page=int(current_app.config['FLASKY_POSTS_PER_PAGE']),error_out=False)
+	comments = pagination.items
+	return render_template('moderate.html', comments=comments, pagination=pagination)
+
+@main.route('/moderate/disable/<int:id>')
+@login_required
+@permission_required(Permission.MODERATE_COMMENTS)
+def disable(id):
+	comment = Comment.query.filter_by(id=id).first()
+	if comment is None:
+		flash(u'帖子不存在')
+		return redirect(url_for('.moderate'))
+	else:
+		comment.disabled = True
+		db.session.add(comment)
+		flash(u'帖子已隐藏')
+		return redirect(url_for('.moderate'))
+
+
+@main.route('/moderate/enable/<int:id>')
+@login_required
+@permission_required(Permission.MODERATE_COMMENTS)
+def enable(id):
+	comment = Comment.query.filter_by(id=id).first()
+	if comment is None:
+		flash(u'帖子不存在')
+		return redirect(url_for('.moderate'))
+	else:
+		comment.disabled = False
+		db.session.add(comment)
+		flash(u'帖子已显示')
+		return redirect(url_for('.moderate'))
+
+@main.route('/user/file',methods=['GET','POST'])
+@login_required
+def file():
+	form = FileForm()
+	if form.validate_on_submit():
+		file = form.file.data
+		filename = random.randint(0,999999)
+		file.save('app/static/images/%s.jpg'%filename)
+		os.remove('app/static/%s'%current_user.img)
+		current_user.img = 'images/%s.jpg' %filename
+		db.session.add(current_user)
+		flash(u'头像修改成功')
+		return redirect(url_for('.user',username=current_user.username))
+	return render_template('file_form.html',form=form)

@@ -35,14 +35,14 @@ def login():
 			login_user(user, form.remember_me.data)
 			#重定向到主页，由于上面已经标记了登录用户，所以页面为登录状态
 			return redirect(request.args.get('next') or url_for('main.index'))
-		flash('Invalid username or password.')
+		flash(u'无效的邮箱/密码')
 	return render_template('auth/login.html', form=form)
 
 @auth.route('/logout')
 @login_required
 def logout():
 	logout_user()
-	flash('You have been loged out.')
+	flash(u'你已退出登录。')
 	return redirect(url_for('main.index'))
 
 @auth.route('/register',methods=['GET', 'POST'])
@@ -125,10 +125,10 @@ def resetpassword(token):
 	if form.validate_on_submit():
 		user = User.query.filter_by(email=form.email.data).first()
 		if user is None:
-			flash('aaaa')
+			flash(u'邮箱未注册。')
 			return redirect(url_for('main.index'))
 		if user.reset_password(token, form.newpassword.data):
-			flash('Your password has been updated.')
+			flash(u'你的密码变更已生效。')
 			return redirect(url_for('auth.login'))
 		else:
 			flash('aaaaaa')
