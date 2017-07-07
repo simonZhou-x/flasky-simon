@@ -241,7 +241,8 @@ def file():
 		file = form.file.data
 		filename = random.randint(0,999999)
 		file.save('app/static/images/%s.jpg'%filename)
-		os.remove('app/static/%s'%current_user.img)
+		if current_user.img:
+			os.remove('app/static/%s'%current_user.img)
 		current_user.img = 'images/%s.jpg' %filename
 		db.session.add(current_user)
 		flash(u'头像修改成功')
